@@ -3,7 +3,6 @@ from tensorflow.contrib.distributions import Normal, kl
 import numpy as np
 import pdb
 
-train_flag = tf.placeholder(tf.bool, name='jb_train_flag')
 
 def ph(shape, dtype=tf.float32, name=None):
     return tf.placeholder(dtype=dtype, shape=shape, name=name)
@@ -39,11 +38,11 @@ class Module(object):
 
 class SameShape(Module):
     """a module where what comes out is same shape as what went in"""
-    def __call__(self, x):
+    def __call__(self, x, **kwargs):
         self.input_rank = rank(x)
         self.input_shape = x.get_shape()
         self.output_shape = x.get_shape()
-        return super(SameShape, self).__call__(x)
+        return super(SameShape, self).__call__(x, **kwargs)
 
 
 class Linear(Module):
@@ -87,7 +86,7 @@ class BatchNorm(SameShape):
         self.beta_trainable = beta_trainable
         self.gamma_trainable = gamma_trainable
 
-    def _call(self, x, train_flag=train_flag):
+    def _call(self, x, train_flag):
         if self.called:
             assert rank(x) == self.input_rank
             assert static_size(x, -1) == self.input_shape[-1]
@@ -125,7 +124,7 @@ class Dropout(SameShape):
 
         self.p_drop = p_drop
 
-    def _call(self, x, train_flag=train_flag):
+    def _call(self, x, train_flag):
         mask = lambda: tf.to_float(tf.random_uniform(tf.shape(x)) > self.p_drop)
         dropped = tf.cond(train_flag,
                           lambda: (x * mask()) / (1. - self.p_drop),
@@ -149,7 +148,7 @@ class FCLayer(Module):
             self.act_fn = act_fn
             self.dropout = Dropout(p_drop) if self.drop else None
 
-    def _call(self, x, train_flag=train_flag):
+    def _call(self, x, train_flag):
         if self.called:
             assert rank(x) == self.input_rank
             assert static_size(x, 1) == self.n_in
@@ -159,9 +158,9 @@ class FCLayer(Module):
             self.n_in = static_size(x, 1)
 
         preact = self.linear(x)
-        bn_preact = self.batch_norm(preact) if self.bn else None
+        bn_preact = self.batch_norm(preact, train_flag) if self.bn else None
         act = self.act_fn(bn_preact) if self.bn else self.act_fn(preact)
-        dropped = self.dropout(act) if self.drop else None
+        dropped = self.dropout(act, train_flag) if self.drop else None
 
         out = dropped if self.drop else act
         out.preact = preact
@@ -181,7 +180,7 @@ class Stack(Module):
             [self.add(layer) for layer in layers]
 
     # FIXME: need a better abstraction of passing multiple inputs to this thing
-    def _call(self, x, train_flag=train_flag):
+    def _call(self, x, train_flag):
         hid = []
         out = x
         for layer in self.layers:
@@ -195,7 +194,7 @@ class Stack(Module):
 
 
 class MLP(Stack):
-    def __init__(self, sizes, act_fn=tf.nn.relu, bn=False, p_drop=None, readout=True, train_flag=train_flag, name='MLP'):
+    def __init__(self, sizes, act_fn=tf.nn.relu, bn=False, p_drop=None, readout=True, name='MLP'):
         super(MLP, self).__init__(name=name)
 
         self.n_layer = len(sizes)
@@ -242,7 +241,7 @@ class lReLU(SameShape):
 
     def _call(self, x):
         pos = tf.nn.relu(x)
-        neg = alphas * (x - abs(x)) * 0.5
+        neg = self.alpha * (x - abs(x)) * 0.5
         return pos + neg
 
 
@@ -250,7 +249,7 @@ class pReLU(SameShape):
     def __init__(self, name='pReLU'):
         super(pReLU, self).__init__(name)
 
-    def _call(self, x):
+    def _call(self, x, train_flag):
         if self.called:
             # TODO: check shape
             pass
