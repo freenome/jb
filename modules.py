@@ -25,9 +25,9 @@ class Module(object):
         self.output_shape = None
         self.called = False
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, train_flag):
         with tf.name_scope(self.name) as scope:
-            out = self._call(*args, **kwargs)
+            out = self._call(*args, train_flag)
         self.called = True
         out.call = self
         return out
@@ -42,7 +42,7 @@ class SameShape(Module):
         self.input_rank = rank(x)
         self.input_shape = x.get_shape()
         self.output_shape = x.get_shape()
-        return super(SameShape, self).__call__(x, train_flag)
+        return super(SameShape, self).__call__(x, train_flag=train_flag)
 
 
 class Linear(Module):
