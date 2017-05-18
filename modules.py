@@ -38,11 +38,11 @@ class Module(object):
 
 class SameShape(Module):
     """a module where what comes out is same shape as what went in"""
-    def __call__(self, x, **kwargs):
+    def __call__(self, x, train_flag=None):
         self.input_rank = rank(x)
         self.input_shape = x.get_shape()
         self.output_shape = x.get_shape()
-        return super(SameShape, self).__call__(x, **kwargs)
+        return super(SameShape, self).__call__(x, train_flag)
 
 
 class Linear(Module):
