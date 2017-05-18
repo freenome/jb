@@ -258,11 +258,3 @@ class pReLU(SameShape):
         pos = tf.nn.relu(x)
         neg = self.alpha * (x - abs(x)) * 0.5
         return pos + neg
-
-
-if __name__ == '__main__':
-    from misc import test_over_mnist
-    # TODO: passing a parameterized activation function is clunky
-    mlp = MLP([256, 128, 10], act_fn=lambda x: pReLU()(x), bn=True, p_drop=0.2)
-    test_over_mnist(mlp, train_flag)
-
