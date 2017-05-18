@@ -25,9 +25,9 @@ class Module(object):
         self.output_shape = None
         self.called = False
 
-    def __call__(self, *args, train_flag):
+    def __call__(self, *args, **kwargs):
         with tf.name_scope(self.name) as scope:
-            out = self._call(*args, train_flag)
+            out = self._call(*args, **kwargs)
         self.called = True
         out.call = self
         return out
